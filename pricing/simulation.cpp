@@ -154,6 +154,9 @@ std::vector<std::vector<double>> GradientClipping(std::vector<std::vector<double
     overFlowFlag = false;
     for (t = 0; t <= T_BAR; t++) {
         for (i = 0; i < static_cast<int>(c[0].size()); i++) {
+            if (std::isinf(c[t][i])) {
+                std::cout << "infinity" << std::endl;
+            }
             if (c[t][i] * c[t][i] < 0) {
                 overFlowFlag = true;
                 break;
@@ -187,7 +190,7 @@ std::vector<std::vector<double>> OptimizeWithBarrier(std::vector<std::vector<Spa
     std::vector<std::vector<double>> c(T_BAR + 1, std::vector<double>(Link[0].size(), 0)), x(T_BAR + 1, std::vector<double>(Link[0].size(), 0)), prev_x(T_BAR + 1, std::vector<double>(Link[0].size(), 0));
     double sumCost, diff;
     int t, i, j, counter, convergeCount;
-    bool is_ok;
+    bool is_ok, is_strict_ok;
 
     counter = 0;
     x = init_x;
@@ -200,24 +203,28 @@ std::vector<std::vector<double>> OptimizeWithBarrier(std::vector<std::vector<Spa
         diff = 0;  // 収束確認用
         std::vector<double> arriveSum(T_BAR + 1, 0);
         is_ok = true;
+        is_strict_ok = true;
         for (t = 0; t <= T_BAR; t++) {
             for (i = 0; i < static_cast<int>(Link[0].size()); i++) {
                 sumCost += (x[t][i] > 0 ? c[t][i] * x[t][i] : 0);
                 arriveSum[t] += x[t][i];
                 diff += std::abs(x[t][i] - prev_x[t][i]);
             }
-            if (arriveSum[t] > CAP) {
+            if (arriveSum[t] > CAP - 1e-6) {
                 is_ok = false;
             }
-        }
-        if (is_ok) {
-            for (t = 0; t <= T_BAR; t++) {
-                sumCost -= NU1 * std::log(CAP - arriveSum[t]);
+            if (arriveSum[t] > CAP) {
+                is_strict_ok = false;
             }
         }
+        // if (is_ok) {
+        //     for (t = 0; t <= T_BAR; t++) {
+        //         sumCost -= NU1 * std::log(CAP - arriveSum[t]);
+        //     }
+        // }
         sumCostTrans.emplace_back(sumCost);
         xTrans.emplace_back(x);
-        overTrans.emplace_back(!is_ok);
+        overTrans.emplace_back(!is_strict_ok);
         cTrans.emplace_back(c);
 
         if (counter % 1000 == 0) {
@@ -231,7 +238,7 @@ std::vector<std::vector<double>> OptimizeWithBarrier(std::vector<std::vector<Spa
         }
         if (diff < CONVERGE_THRES) {
             convergeCount++;
-            if (convergeCount >= CONVERGE_COUNT_THRES) {
+            if (convergeCount >= CONVERGE_COUNT_THRES && is_ok) {
                 break;
             }
         } else {
@@ -251,7 +258,8 @@ std::vector<std::vector<double>> OptimizeWithBarrier(std::vector<std::vector<Spa
         } else {
             for (t = 0; t <= T_BAR; t++) {
                 for (i = 0; i < static_cast<int>(Link[0].size()); i++) {
-                    price[t][i] = exp(NU2 * (arriveSum[t] - CAP)) - c[t][i];
+                    // price[t][i] = exp(NU2 * (arriveSum[t] - CAP)) - c[t][i];
+                    price[t][i] = std::max(2 * NU2 * (arriveSum[t] - CAP + 1e-6), 0.0) - c[t][i];
                 }
             }
         }

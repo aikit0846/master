@@ -1,5 +1,5 @@
-#ifndef MAIN_HPP
-#define MAIN_HPP
+#ifndef GLOBAL_HPP
+#define GLOBAL_HPP
 
 #include <vector>
 #include <functional>

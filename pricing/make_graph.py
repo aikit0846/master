@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-dir = '/home/suzuki/master/221126/1/'
+dir = '/home/suzuki/master/pricing/1/'
 
 # 容量超過ふらぐ
 df_over = pd.read_csv(dir + 'overTrans.csv')
@@ -12,7 +12,7 @@ ax_cost = fig_cost.add_subplot(111)
 df = pd.read_csv(dir + 'sumCostTrans.csv')
 ax_cost.plot(df['step'], df['sumcost'])
 # ax_cost.set_ylim(300, 350)
-# ax_cost.plot(df_over['step'], df_over['is_over'] * 310)
+ax_cost.plot(df_over['step'], df_over['is_over'] * 300)
 fig_cost.savefig(dir + 'sumCostTrans.png')
 
 # fig_cost = plt.figure()
