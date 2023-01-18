@@ -32,7 +32,7 @@ MIXED_FNAME = 'priceFlow.png'
 DETAIL_FNAME = 'objDetail.png'
 ZEROCOST_FNAME = 'zeroCost.png'
 ONECOST_FNAME = 'oneCost.png'
-STEP_NUM = 2000
+STEP_NUM = 3000
 
 
 ### 2列のデータの可視化
@@ -258,9 +258,14 @@ def make_accum_graph(fname_obj, fname_rail, fname_stay, savename):
 
 
 ### 経路ごとに積み上げグラフ作成
-def make_path_accum_graph(fname, savename, lower, upper):
+def make_path_accum_graph(fname, fname_flow, savename, lower, upper):
     df_with = pd.read_csv(DIR + fname)
     df_out = pd.read_csv(DIR + 'out' + fname)
+    df_no = pd.read_csv(DIR + 'no' + fname)
+    df_flow_with = pd.read_csv(DIR + fname_flow)
+    df_flow_out = pd.read_csv(DIR + 'out' + fname_flow)
+    df_flow_no = pd.read_csv(DIR + 'no' + fname_flow)
+    
 
     df_with['obj'] = -df_with['2']
     df_with['Congestion Cost'] = -df_with['0']
@@ -272,52 +277,81 @@ def make_path_accum_graph(fname, savename, lower, upper):
     df_out['Stay Utility'] = -df_out['1']
     df_out['Fare and Points'] = -df_out['3']
     df_out['Scheduling Cost'] = df_out['obj'] - df_out['Congestion Cost'] - df_out['Stay Utility']
+    df_no['obj'] = -df_no['2']
+    df_no['Congestion Cost'] = -df_no['0']
+    df_no['Stay Utility'] = -df_no['1']
+    df_no['Fare and Points'] = -df_no['3']
+    df_no['Scheduling Cost'] = df_no['obj'] - df_no['Congestion Cost'] - df_no['Stay Utility']
 
 
     df_with = df_with.drop(['0', '1', '2', '3', 'obj', 'step'], axis=1).iloc[:2001]
     df_out = df_out.drop(['0', '1', '2', '3', 'obj', 'step'], axis=1).iloc[:2001]
+    df_no = df_no.drop(['0', '1', '2', '3', 'obj', 'step'], axis=1).iloc[:2001]
 
     fig_with = plt.figure(figsize=(16, 9))
     ax_with = fig_with.add_subplot(111)
     fig_out = plt.figure(figsize=(16, 9))
     ax_out = fig_out.add_subplot(111)
+    fig_no = plt.figure(figsize=(16, 9))
+    ax_no = fig_no.add_subplot(111)
 
     df_with.plot.bar(stacked=True, legend=False, ax=ax_with)
     df_out.plot.bar(stacked=True, legend=False, ax=ax_out)
+    df_no.plot.bar(stacked=True, legend=False, ax=ax_no)
 
     ax_with.set_ylim(lower, upper)
     ax_out.set_ylim(lower, upper)
+    ax_no.set_ylim(lower, upper)
 
-    ax_with.set_xlabel('Days elapsed')
-    ax_with.set_ylabel('Utility')
-    ax_out.set_xlabel('Days elapsed')
-    ax_out.set_ylabel('Utility')
-
-    ax_with.legend(fontsize=FONTSIZE-1)
-    ax_out.legend(fontsize=FONTSIZE-1)
+    # ax_with.legend(fontsize=FONTSIZE-1)
+    # ax_out.legend(fontsize=FONTSIZE-1)
+    # ax_no.legend(fontsize=FONTSIZE-1)
     ax_with.set_xticks([i for i in range(0, 2000, 100)])
     ax_out.set_xticks([i for i in range(0, 2000, 100)])
+    ax_no.set_xticks([i for i in range(0, 2000, 100)])
     ax_with.set_xlabel('Days elapsed', fontsize=FONTSIZE)
     ax_with.set_ylabel('Utility', fontsize=FONTSIZE)
     ax_out.set_xlabel('Days elapsed', fontsize=FONTSIZE)
     ax_out.set_ylabel('Utility', fontsize=FONTSIZE)
+    ax_no.set_xlabel('Days elapsed', fontsize=FONTSIZE)
+    ax_no.set_ylabel('Utility', fontsize=FONTSIZE)
     ax_with.tick_params(labelsize=FONTSIZE-1)
     ax_out.tick_params(labelsize=FONTSIZE-1)
+    ax_no.tick_params(labelsize=FONTSIZE-1)
+
+    ax2_with = ax_with.twinx()
+    ax2_with.plot(df_flow_with['step'], df_flow_with['0'], label='f_(ψ_0)')
+    ax2_with.plot(df_flow_with['step'], df_flow_with['1'], label='f_(ψ_1)')
+    ax2_out = ax_out.twinx()
+    ax2_out.plot(df_flow_out['step'], df_flow_out['0'], label='f_(ψ_0)')
+    ax2_out.plot(df_flow_out['step'], df_flow_out['1'], label='f_(ψ_1)')
+    ax2_no = ax_no.twinx()
+    ax2_no.plot(df_flow_no['step'], df_flow_no['0'], label='f_(ψ_0)')
+    ax2_no.plot(df_flow_no['step'], df_flow_no['1'], label='f_(ψ_1)')
+
+    # ax2_with.legend()
+    # ax2_out.legend()
+    # ax2_no.legend()
+    
+    ax2_with.set_ylabel('Flow', fontsize=FONTSIZE-1)
+    ax2_out.set_ylabel('Flow', fontsize=FONTSIZE-1)
+    ax2_no.set_ylabel('Flow', fontsize=FONTSIZE-1)
+
+    fig_with.legend(fontsize=FONTSIZE-1, bbox_to_anchor=(0.905, 0.1), loc='lower right')
+    fig_out.legend(fontsize=FONTSIZE-1, bbox_to_anchor=(0.905, 0.1), loc='lower right')
+    fig_no.legend(fontsize=FONTSIZE-1, bbox_to_anchor=(0.905, 0.1), loc='lower right')
 
     fig_with.savefig(DIR + savename)
     fig_out.savefig(DIR + 'out' + savename)
+    fig_no.savefig(DIR + 'no' + savename)
 
     plt.clf()
     plt.close()
 
 
-
 ### 相図の作成
-def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, contour_obj_fname, savename, poi, scale, cnum, minscale, mode, arrowpos, color='black', width=0.3, mode2=False):
+def make_phase_diagram(pathflow_fname, perturb_fname, contour_fname, contour_obj_fname, savename, poi, scale, cnum, minscale, mode, arrowpos, color='black', width=0.3, mode2=False):
     ## データの読み込み
-    df_obj_with = pd.read_csv(DIR + obj_fname)
-    df_obj_out = pd.read_csv(DIR + 'out' + obj_fname)
-    df_obj_no = pd.read_csv(DIR + 'no' + obj_fname)
     df_flow_with = pd.read_csv(DIR + pathflow_fname)
     df_flow_out = pd.read_csv(DIR + 'out' + pathflow_fname)
     df_flow_no = pd.read_csv(DIR + 'no' + pathflow_fname)
@@ -360,12 +394,15 @@ def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, 
     ax_no = fig_no.add_subplot(111, projection='ternary', ternary_scale=ternary_scale_no)
 
     ## 等高線の描画
-    minval = min(-df_contour_obj_with['sumCost'].max(), -df_contour_obj_out['sumCost'].max(), -df_contour_obj_no['sumCost'].max())
-    maxval = max(-df_contour_obj_with['sumCost'].min(), -df_contour_obj_out['sumCost'].min(), -df_contour_obj_no['sumCost'].min())
-    levels = np.linspace(minval, maxval, cnum + 1)
-    cs_with = ax_with.tricontourf(df_contour_with[poi[0]], df_contour_with[poi[1]], df_contour_with[poi[2]], -df_contour_obj_with['sumCost'], levels=levels)
-    cs_out = ax_out.tricontourf(df_contour_out[poi[0]], df_contour_out[poi[1]], df_contour_out[poi[2]], -df_contour_obj_out['sumCost'],levels=levels)
-    cs_no = ax_no.tricontourf(df_contour_no[poi[0]], df_contour_no[poi[1]], df_contour_no[poi[2]], -df_contour_obj_no['sumCost'],levels=levels)
+    # minval = min(-df_contour_obj_with['sumCost'].max(), -df_contour_obj_out['sumCost'].max(), -df_contour_obj_no['sumCost'].max())
+    # maxval = max(-df_contour_obj_with['sumCost'].min(), -df_contour_obj_out['sumCost'].min(), -df_contour_obj_no['sumCost'].min())
+    # levels = np.linspace(minval, maxval, cnum + 1)
+    # levels_with = np.linspace(-df_contour_obj_with['sumCost'].max(), -df_contour_obj_with['sumCost'].min(), cnum + 1)
+    # levels_out = np.linspace(-df_contour_obj_out['sumCost'].max(), -df_contour_obj_out['sumCost'].min(), cnum + 1)
+    # levels_no = np.linspace(-df_contour_obj_no['sumCost'].max(), -df_contour_obj_no['sumCost'].min(), cnum + 1)
+    cs_with = ax_with.tripcolor(df_contour_with[poi[0]], df_contour_with[poi[1]], df_contour_with[poi[2]], -df_contour_obj_with['sumCost'], shading='gouraud')
+    cs_out = ax_out.tripcolor(df_contour_out[poi[0]], df_contour_out[poi[1]], df_contour_out[poi[2]], -df_contour_obj_out['sumCost'], shading='gouraud')
+    cs_no = ax_no.tripcolor(df_contour_no[poi[0]], df_contour_no[poi[1]], df_contour_no[poi[2]], -df_contour_obj_no['sumCost'], shading='gouraud')
 
     if mode:
         ## mode == Trueのとき，ベクトル場の描画
@@ -398,15 +435,17 @@ def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, 
             ax_no.grid()
             ax_no.plot([5, 0], [0, 5], [5, 5], color='orange', lw=width+1)
 
+        # 均衡解に赤点を打つ
+        ax_with.scatter(df_flow_with[poi[0]].iloc[STEP_NUM - 1], df_flow_with[poi[1]].iloc[STEP_NUM - 1], df_flow_with[poi[2]].iloc[STEP_NUM - 1], color='red', s=100, label=': Equilibrium Point')
+        ax_out.scatter(df_flow_out[poi[0]].iloc[STEP_NUM - 1], df_flow_out[poi[1]].iloc[STEP_NUM - 1], df_flow_out[poi[2]].iloc[STEP_NUM - 1], color='red', s=100, label=': Equilibrium Point')
+        ax_no.scatter(df_flow_no[poi[0]].iloc[STEP_NUM - 1], df_flow_no[poi[1]].iloc[STEP_NUM - 1], df_flow_no[poi[2]].iloc[STEP_NUM - 1], color='red', s=100, label=': Equilibrium Point')
+
         # 流線図の描画
         for i in range(len(df_flow_with) // (STEP_NUM + 1)):
             # プロット
             ax_with.plot(df_flow_with[poi[0]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_with[poi[1]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_with[poi[2]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], color=color, lw=width)
             ax_out.plot(df_flow_out[poi[0]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_out[poi[1]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_out[poi[2]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], color=color, lw=width)
             ax_no.plot(df_flow_no[poi[0]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_no[poi[1]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], df_flow_no[poi[2]].iloc[i * STEP_NUM + i : (i + 1) * STEP_NUM + i + 1], color=color, lw=width)
-            ax_with.scatter(df_flow_with[poi[0]].iloc[STEP_NUM - 1], df_flow_with[poi[1]].iloc[STEP_NUM - 1], df_flow_with[poi[2]].iloc[STEP_NUM - 1], color='red', s=100)
-            ax_out.scatter(df_flow_out[poi[0]].iloc[STEP_NUM - 1], df_flow_out[poi[1]].iloc[STEP_NUM - 1], df_flow_out[poi[2]].iloc[STEP_NUM - 1], color='red', s=100)
-            ax_no.scatter(df_flow_no[poi[0]].iloc[STEP_NUM - 1], df_flow_no[poi[1]].iloc[STEP_NUM - 1], df_flow_no[poi[2]].iloc[STEP_NUM - 1], color='red', s=100)
         
             for pos in arrowpos:
             # 矢印の追加（スケーリングしてから）
@@ -418,12 +457,18 @@ def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, 
                 per0_out = df_perturb_out[poi[0]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_out
                 per1_out = df_perturb_out[poi[1]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_out
                 per2_out = df_perturb_out[poi[2]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_out
+                # length_no = math.sqrt(df_perturb_no[poi[0]].iloc[i * STEP_NUM + i + pos] ** 2 + df_perturb_no[poi[1]].iloc[i * STEP_NUM + i + pos] ** 2 + df_perturb_no[poi[2]].iloc[i * STEP_NUM + i + pos] ** 2)
+                # per0_no = df_perturb_no[poi[0]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
+                # per1_no = df_perturb_no[poi[1]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
+                # per2_no = df_perturb_no[poi[2]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
+                ax_with.quiver(df_flow_with[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_with[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_with[poi[2]].iloc[i * STEP_NUM + i + pos], per0_with, per1_with, per2_with, scale=2, width=0.005, color=color) #, headwidth=10)
+                ax_out.quiver(df_flow_out[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_out[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_out[poi[2]].iloc[i * STEP_NUM + i + pos], per0_out, per1_out, per2_out, scale=2, width=0.005, color=color) #, headwidth=10)
+                # ax_no.quiver(df_flow_no[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_no[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_no[poi[2]].iloc[i * STEP_NUM + i + pos], per0_no, per1_no, per2_no, scale=2, width=0.005, color=color) #, headwidth=10)
+            for pos in [5, 40, 90]:
                 length_no = math.sqrt(df_perturb_no[poi[0]].iloc[i * STEP_NUM + i + pos] ** 2 + df_perturb_no[poi[1]].iloc[i * STEP_NUM + i + pos] ** 2 + df_perturb_no[poi[2]].iloc[i * STEP_NUM + i + pos] ** 2)
                 per0_no = df_perturb_no[poi[0]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
                 per1_no = df_perturb_no[poi[1]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
                 per2_no = df_perturb_no[poi[2]].iloc[i * STEP_NUM + i + pos] * 0.4 / length_no
-                ax_with.quiver(df_flow_with[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_with[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_with[poi[2]].iloc[i * STEP_NUM + i + pos], per0_with, per1_with, per2_with, scale=2, width=0.005, color=color) #, headwidth=10)
-                ax_out.quiver(df_flow_out[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_out[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_out[poi[2]].iloc[i * STEP_NUM + i + pos], per0_out, per1_out, per2_out, scale=2, width=0.005, color=color) #, headwidth=10)
                 ax_no.quiver(df_flow_no[poi[0]].iloc[i * STEP_NUM + i + pos], df_flow_no[poi[1]].iloc[i * STEP_NUM + i + pos], df_flow_no[poi[2]].iloc[i * STEP_NUM + i + pos], per0_no, per1_no, per2_no, scale=2, width=0.005, color=color) #, headwidth=10)
 
     ## 等高線の凡例
@@ -435,18 +480,23 @@ def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, 
     colorbar_out.set_label('Value of objective function', rotation=270, va='baseline')
     cax_no = ax_no.inset_axes([1.05, 0.1, 0.05, 0.9], transform=ax_no.transAxes)
     colorbar_no = fig_no.colorbar(cs_no, cax=cax_no)
-    colorbar_no.set_label('Value of objective function', rotation=270, va='baseline')
+    colorbar_no.set_label('Value of potential function', rotation=270, va='baseline')
+
+    ## 均衡点の凡例
+    ax_with.legend(frameon=False)
+    ax_out.legend(frameon=False)
+    ax_no.legend(frameon=False)
 
     ## 軸の設定
-    ax_with.set_tlabel('Path ψ_{}'.format(poi[0]))
-    ax_with.set_llabel('Path ψ_{}'.format(poi[1]))
-    ax_with.set_rlabel('Path ψ_{}'.format(poi[2]))
-    ax_out.set_tlabel('Path ψ_{}'.format(poi[0]))
-    ax_out.set_llabel('Path ψ_{}'.format(poi[1]))
-    ax_out.set_rlabel('Path ψ_{}'.format(poi[2]))
-    ax_no.set_tlabel('Path ψ_{}'.format(poi[0]))
-    ax_no.set_llabel('Path ψ_{}'.format(poi[1]))
-    ax_no.set_rlabel('Path ψ_{}'.format(poi[2]))
+    ax_with.set_tlabel('f_(ψ_{})'.format(poi[0]))
+    ax_with.set_llabel('f_(ψ_{})'.format(poi[1]))
+    ax_with.set_rlabel('f_(ψ_{})'.format(poi[2]))
+    ax_out.set_tlabel('f_(ψ_{})'.format(poi[0]))
+    ax_out.set_llabel('f_(ψ_{})'.format(poi[1]))
+    ax_out.set_rlabel('f_(ψ_{})'.format(poi[2]))
+    ax_no.set_tlabel('f_(ψ_{})'.format(poi[0]))
+    ax_no.set_llabel('f_(ψ_{})'.format(poi[1]))
+    ax_no.set_rlabel('f_(ψ_{})'.format(poi[2]))
     ax_with.taxis.set_label_position('tick1')
     ax_with.laxis.set_label_position('tick1')
     ax_with.raxis.set_label_position('tick1')
@@ -470,23 +520,23 @@ def make_phase_diagram(obj_fname, pathflow_fname, perturb_fname, contour_fname, 
 
 
 ### 相図の作成
-## ベクトル場の描画
-make_phase_diagram('sumCostTrans.csv', 'pathFlowTrans.csv', 'contourVec.csv', 'contour.csv', 'contourObj.csv', 'vectorField.png',  ['0', '1', '2'], scale=0.4, cnum=30, minscale=0.08, mode=True, arrowpos=[1, 5, 20])
+# ## ベクトル場の描画
+# make_phase_diagram('pathFlowTrans.csv', 'contourVec.csv', 'contour.csv', 'contourObj.csv', 'vectorField.png',  ['0', '1', '2'], scale=0.4, cnum=30, minscale=0.08, mode=True, arrowpos=[1, 5, 20])
 ## 流線図の描画
-make_phase_diagram('sumCostTrans.csv', 'stream.csv', 'streamVec.csv', 'contour.csv', 'contourObj.csv', 'flowDiagram.png', ['0', '1', '2'], scale=1, cnum=30, minscale=0.15, mode=False, arrowpos=[1, 10, 30])
-## シミュレーション結果のトラジェクトリーの描画
-make_phase_diagram('sumCostTrans.csv', 'pathFlowTrans.csv', 'perturbation.csv', 'contour.csv', 'contourObj.csv', 'trajectory.png', ['0', '1', '2'], scale=1, cnum=30, minscale=0.15, mode=False, arrowpos=[0, 200, 500, 700], color='black', width=3, mode2=True)
+make_phase_diagram('stream.csv', 'streamVec.csv', 'contour.csv', 'contourObj.csv', 'flowDiagram.png', ['0', '1', '2'], scale=1, cnum=30, minscale=0.15, mode=False, arrowpos=[1, 7, 20])
+# ## シミュレーション結果のトラジェクトリーの描画
+# make_phase_diagram('pathFlowTrans.csv', 'perturbation.csv', 'contour.csv', 'contourObj.csv', 'trajectory.png', ['0', '1', '2'], scale=1, cnum=30, minscale=0.15, mode=False, arrowpos=[0, 200, 500, 700], color='black', width=3)
 print('相図の作成完了')
 
-### 目的関数の内訳の変化
-make_accum_graph('sumCostTrans.csv', 'railCostTrans.csv', 'stayUtilTrans.csv', DETAIL_FNAME)
-print('目的関数の内訳の遷移可視化完了')
+# ### 目的関数の内訳の変化
+# make_accum_graph('sumCostTrans.csv', 'railCostTrans.csv', 'stayUtilTrans.csv', DETAIL_FNAME)
+# print('目的関数の内訳の遷移可視化完了')
 
-### 経路ごとに総利得の内訳の変化
-## lower：y軸の下限値，upper：y軸の上限値
-make_path_accum_graph('zeroCostTrans.csv', ZEROCOST_FNAME, lower=-20, upper=11)
-make_path_accum_graph('oneCostTrans.csv', ONECOST_FNAME, lower=-20, upper=11)
-print('経路ごとの目的関数の内訳可視化完了')
+# ### 経路ごとに総利得の内訳の変化
+# ## lower：y軸の下限値，upper：y軸の上限値
+# make_path_accum_graph('zeroCostTrans.csv', 'pathFlowTrans.csv', ZEROCOST_FNAME, lower=-20, upper=11)
+# make_path_accum_graph('oneCostTrans.csv', ONECOST_FNAME, lower=-20, upper=11)
+# print('経路ごとの目的関数の内訳可視化完了')
 
 # ### 課金額とパスフローの変化
 # make_mixed_graph('pathFlowTrans.csv', 'moneyTrans.csv', 'pointTrans.csv', 1, 2, '0_' + MIXED_FNAME)

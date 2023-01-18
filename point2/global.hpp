@@ -27,6 +27,7 @@ extern const double CAP;  // 列車の定員
 extern const double M_MAX;  // 1日に使用できるポイントの上限額
 extern const double M0;  // 使用できるポイントの1単位
 extern const double C;  // 場所の効用関数のパラメータ
+extern const double C2; // 場所の効用関数のパラメータその2
 extern const double C_BOARD;  // 乗車コスト
 extern const double DYNAMICS_STEP;  // ダイナミクスのステップ幅
 extern const double GAMMA;  // 1ポイントの金銭的価値
@@ -93,6 +94,7 @@ struct Link {
     double xFromOne = 0;  // ODパターン1由来のフロー
     double linkCost = 0;  // コスト関数
     double linkCostPrime = 0;  // コストの微分値
+    double potential = 0;  // リンクコスト関数の積分値
     double price = 0;  // 課金額
     double money = 0;  // 金銭での課金額
     double point = 0;  // ポイント付与額
@@ -110,6 +112,9 @@ struct Link {
 
     // 課金額を計算
     void CalcLinkPrice();
+
+    // ポテンシャルの計算
+    void CalcRailLinkPotential(std::function<double(double, double)> LinkCostFuncIntegral);
 };
 
 
@@ -124,7 +129,7 @@ struct Path {
     double pathCostWithPrice;  // 課金額を含む経路コスト
 
     // コストを計算
-    void CalcPathCost(std::vector<Link> linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> StayLinkCostFunc);
+    void CalcPathCost(std::vector<Link> linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2);
 
     // 課金額を含むコストを計算
     void CalcPathCostWithPrice(std::vector<Link> linkVec);
@@ -151,8 +156,14 @@ double RailLinkCostFunc(double u, double t);
 // 鉄道リンクのリンクコスト関数の微分
 double RailLinkCostFuncPrime(double u, double t);
 
+// 鉄道リンクのリンクコスト関数の積分
+double RailLinkCostFuncIntegral(double u, double t);
+
 // 滞在リンクのリンクコスト関数
 double StayLinkCostFunc(double b, double poiU);
+
+// 滞在リンクのリンクコスト関数その2
+double StayLinkCostFunc2(double b, double poiU);
 
 // 財n個から得られる効用
 double UtilityByGoods(double U0, int n);

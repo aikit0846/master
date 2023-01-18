@@ -95,7 +95,7 @@ void MakeRandomInitFlow(std::vector<Path> &pathVec, std::vector<Demand> demandVe
 
 
 // 初期解の生成
-void MakeInitFlow(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc)
+void MakeInitFlow(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2)
 {
     double diff;
     int convergeCount, count, idx;
@@ -120,7 +120,7 @@ void MakeInitFlow(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::v
 
         // パスベースの変数の計算
         for (auto &&path : pathVec) {
-            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
             path.CalcPathCostWithPrice(linkVec);  // 一緒だけど
         }
 
@@ -204,7 +204,7 @@ void CalcMoneyPoint(std::vector<Path> pathVec, std::vector<Link> &linkVec, std::
 
 
 // With Pointのシミュレーション
-void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Node> nodeVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
+void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Node> nodeVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
 {
     double diff, sumCost, railCost, stayUtil, railRevenue, storeRevenue;
     int convergeCount, count, i;
@@ -229,7 +229,7 @@ void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vec
         sumCost = 0;
         stayUtil = 0;
         for (auto &&path : pathVec) {
-            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
             path.CalcPathCostWithPrice(linkVec);
             sumCost += path.f * path.pathCost;
 
@@ -239,7 +239,7 @@ void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vec
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
                 if (linkVec[idx].type == 't') {
-                    stayUtil += linkVec[idx].poiU * path.f;
+                    stayUtil -= StayLinkCostFunc2(demandVec[path.odidx].B, linkVec[idx].poiU) * path.f;
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
             }
@@ -258,7 +258,7 @@ void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vec
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathZeroCost[1] -= linkVec[idx].poiU; // * pathVec[0].f;
+                pathZeroCost[1] += StayLinkCostFunc2(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[0].f;
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
         }
@@ -274,7 +274,7 @@ void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vec
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathOneCost[1] -= linkVec[idx].poiU; // * pathVec[1].f;
+                pathOneCost[1] += StayLinkCostFunc2(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[1].f;
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
         }
@@ -353,7 +353,7 @@ void Simulation(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vec
 
 
 // Without Pointのシミュレーション
-void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
+void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
 {
     double diff, sumCost, railCost, stayUtil, railRevenue, storeRevenue;
     int convergeCount, count, i;
@@ -380,7 +380,7 @@ void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, s
         sumCost = 0;
         stayUtil = 0;
         for (auto &&path : pathVec) {
-            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
             path.CalcPathCostWithPrice(linkVec);
             sumCost += path.f * path.pathCost;
 
@@ -390,7 +390,7 @@ void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, s
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
                 if (linkVec[idx].type == 't') {
-                    stayUtil += linkVec[idx].poiU * path.f;
+                    stayUtil -= StayLinkCostFunc2(demandVec[path.odidx].B, linkVec[idx].poiU) * path.f;
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
             }
@@ -409,7 +409,7 @@ void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, s
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathZeroCost[1] -= linkVec[idx].poiU; // * pathVec[0].f;
+                pathZeroCost[1] += StayLinkCostFunc2(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[0].f;
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
         }
@@ -425,7 +425,7 @@ void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, s
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathOneCost[1] -= linkVec[idx].poiU; // * pathVec[1].f;
+                pathOneCost[1] += StayLinkCostFunc2(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[1].f;
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
         }
@@ -500,7 +500,7 @@ void SimulationWithout(std::vector<Path> &pathVec, std::vector<Link> &linkVec, s
 
 
 // Without Controlのシミュレーション
-void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Node> nodeVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
+void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec, std::vector<Node> nodeVec, std::vector<Demand> &demandVec, std::function<double(double, double)> RailLinkCostFunc, std::function<double(double, double)> RailLinkCostFuncPrime, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2, std::vector<double> &sumCostTrans, std::vector<double> &railCostTrans, std::vector<double> &stayUtilTrans, std::vector<std::vector<double>> &pathCostTrans, std::vector<std::vector<double>> &possessedPointTrans, std::vector<std::vector<double>> &linkFlowTrans, std::vector<std::vector<double>> &zeroFlowTrans, std::vector<std::vector<double>> &oneFlowTrans, std::vector<std::vector<double>> &pathFlowTrans, std::vector<std::vector<double>> &moneyTrans, std::vector<std::vector<double>> &pointTrans, std::vector<double> &railRevenueTrans, std::vector<double> &storeRevenueTrans, std::vector<std::vector<double>> &perturbationTrans, std::vector<std::vector<double>> &pathZeroCostTrans, std::vector<std::vector<double>> &pathOneCostTrans)
 {
     double diff, sumCost, railCost, stayUtil, railRevenue, storeRevenue;
     int convergeCount, count, i;
@@ -524,7 +524,7 @@ void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec,
         sumCost = 0;
         stayUtil = 0;
         for (auto &&path : pathVec) {
-            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+            path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
             path.CalcPathCostWithPrice(linkVec);
             sumCost += path.f * path.pathCost;
 
@@ -534,7 +534,7 @@ void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec,
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
                 if (linkVec[idx].type == 't') {
-                    stayUtil += linkVec[idx].poiU * path.f;
+                    stayUtil -= StayLinkCostFunc2(demandVec[path.odidx].B, linkVec[idx].poiU) * path.f;
                     stayUtil -= BETA_H * DELTA_T * path.f;
                 }
             }
@@ -553,7 +553,7 @@ void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec,
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathZeroCost[1] -= linkVec[idx].poiU; // * pathVec[0].f;
+                pathZeroCost[1] += StayLinkCostFunc2(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[0].f;
                 pathZeroCost[1] += BETA_H * DELTA_T;
             }
         }
@@ -569,7 +569,7 @@ void SimulationNoControl(std::vector<Path> &pathVec, std::vector<Link> &linkVec,
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
             if (linkVec[idx].type == 't') {
-                pathOneCost[1] -= linkVec[idx].poiU; // * pathVec[1].f;
+                pathOneCost[1] += StayLinkCostFunc(demandVec[pathVec[1].odidx].B, linkVec[idx].poiU); // * pathVec[1].f;
                 pathOneCost[1] += BETA_H * DELTA_T;
             }
         }

@@ -13,8 +13,8 @@
 int main(int argc, char *argv[])
 {
     // コマンドライン引数の受け取り
-    const int MODE = *argv[1] - '0';
-    const std::string SUBDIR = *argv[2] + "/";
+    const int MODE = argv[1][0] - '0';
+    const std::string SUBDIR = argv[2];
 
     // 時間測定開始
     std::chrono::system_clock::time_point start, middle, end;
@@ -46,33 +46,49 @@ int main(int argc, char *argv[])
 
     // 初期解記録用
     std::vector<Path> initPathVec, initPathVec2;
-    std::vector<Link> initLinkVec;
+    std::vector<Link> initLinkVec, initLinkVec2;
 
     if (MODE == 0) {
+        // 均衡解出発のシミュレーション
         std::cout << "均衡解スタートのシミュレーション開始" << std::endl;
 
-        // シミュレーション（均衡解スタート・1回のみ）
+        // With Pointでシミュレーション
         std::cout << "初期解作成開始" << std::endl;
-        MakeInitFlow(pathVec, linkVec, demandVec, RailLinkCostFunc, StayLinkCostFunc);
+        MakeInitFlow(pathVec, linkVec, demandVec, RailLinkCostFunc, StayLinkCostFunc, StayLinkCostFunc2);
         initPathVec = pathVec;
         initLinkVec = linkVec;
+        initPathVec2 = pathVec;
+        initLinkVec2 = linkVec;
         std::cout << "初期解作成完了" << std::endl;
-        std::cout << "シミュレーション開始" << std::endl;
-        Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
-        std::cout << "シミュレーション終了" << std::endl;
+        std::cout << "With Pointシミュレーション開始" << std::endl;
+        Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+        std::cout << "With Pointシミュレーション終了" << std::endl;
 
         middle = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::seconds>(middle - start).count();
         std::cout << elapsed << "秒経過" << std::endl;
 
-        // Withoutでシミュレーション
+        // Without Pointでシミュレーション
         for (auto &&demand : demandVec) {
             demand.B = 0;
             demand.L = 0;
         }
-        std::cout << "Withoutシミュレーション開始" << std::endl;
-        SimulationWithout(initPathVec, initLinkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
-        std::cout << "Withoutシミュレーション終了" << std::endl;
+        std::cout << "Without Pointシミュレーション開始" << std::endl;
+        SimulationWithout(initPathVec, initLinkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
+        std::cout << "Without Pointシミュレーション終了" << std::endl;
+
+        middle = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::seconds>(middle - start).count();
+        std::cout << elapsed << "秒経過" << std::endl;
+
+        // Without Controlでシミュレーション
+        for (auto &&demand : demandVec) {
+            demand.B = 0;
+            demand.L = 0;
+        }
+        std::cout << "Without Controlシミュレーション開始" << std::endl;
+        SimulationNoControl(initPathVec2, initLinkVec2, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransNo, railCostTransNo, stayUtilTransNo, pathCostTransNo, possessedPointTransNo, linkFlowTransNo, zeroFlowTransNo, oneFlowTransNo, pathFlowTransNo, moneyTransNo, pointTransNo, railRevenueTransNo, storeRevenueTransNo, perturbationTransNo, pathZeroCostTransNo, pathOneCostTransNo);     
+        std::cout << "Without Controlシミュレーション終了" << std::endl;
 
         middle = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::seconds>(middle - start).count();
@@ -112,7 +128,23 @@ int main(int argc, char *argv[])
         Write2DFile(pathZeroCostTransOut, DIR + SUBDIR + "out" + ZEROCOST_FNAME);
         Write2DFile(pathOneCostTransOut, DIR + SUBDIR + "out" + ONECOST_FNAME);
         Write2DFile(perturbationTransOut, DIR + SUBDIR + "out" + PERTURB_FNAME);
-        WriteParameterFile();
+        Write1DFile(sumCostTransNo, DIR + SUBDIR + "no" + SUMCOST_FNAME, "sumCost");
+        Write1DFile(railCostTransNo, DIR + SUBDIR + "no" + RAILCOST_FNAME, "railCost");
+        Write1DFile(stayUtilTransNo, DIR + SUBDIR + "no" + STAYUTIL_FNAME, "stayUtil");
+        Write2DFile(pathCostTransNo, DIR + SUBDIR + "no" + PATHCOST_FNAME);
+        Write2DFile(possessedPointTransNo, DIR + SUBDIR + "no" + POSSESSED_FNAME);
+        Write2DFile(linkFlowTransNo, DIR + SUBDIR + "no" + LINKFLOW_FNAME);
+        Write2DFile(zeroFlowTransNo, DIR + SUBDIR + "no" + ZEROFLOW_FNAME);
+        Write2DFile(oneFlowTransNo, DIR + SUBDIR + "no" + ONEFLOW_FNAME);
+        Write2DFile(pathFlowTransNo, DIR + SUBDIR + "no" + PATHFLOW_FNAME);
+        Write2DFile(moneyTransNo, DIR + SUBDIR + "no" + MONEY_FNAME);
+        Write2DFile(pointTransNo, DIR + SUBDIR + "no" + POINT_FNAME);
+        Write1DFile(railRevenueTransNo, DIR + SUBDIR + "no" + RAILREV_FNAME, "railRevenue");
+        Write1DFile(storeRevenueTransNo, DIR + SUBDIR + "no" + STOREREV_FNAME, "storeRevenue");
+        Write2DFile(pathZeroCostTransNo, DIR + SUBDIR + "no" + ZEROCOST_FNAME);
+        Write2DFile(pathOneCostTransNo, DIR + SUBDIR + "no" + ONECOST_FNAME);
+        Write2DFile(perturbationTransNo, DIR + SUBDIR + "no" + PERTURB_FNAME);
+        WriteParameterFile(SUBDIR);
         std::cout << "ファイル書き込み完了" << std::endl;
     } else if (MODE == 1) {
         // 等高線 & ベクトル場用
@@ -139,7 +171,7 @@ int main(int argc, char *argv[])
 
                 double sumCost = 0;
                 for (auto &&path : pathVec) {
-                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
                     path.CalcPathCostWithPrice(linkVec);
                     sumCost += path.f * path.pathCost;
                 }
@@ -182,7 +214,7 @@ int main(int argc, char *argv[])
 
                 double sumCost = 0;
                 for (auto &&path : pathVec) {
-                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
                     path.CalcPathCostWithPrice(linkVec);
                     sumCost += path.f * path.pathCost;
                 }
@@ -219,14 +251,17 @@ int main(int argc, char *argv[])
                 pathVec[1].f = j;
                 pathVec[2].f = demandVec[0].m - i - j;
 
+                double sumCost = 0;
                 for (auto &&link : linkVec) {
                     link.CalcLinkFlow(pathVec);
                     link.CalcRailLinkCost(RailLinkCostFunc);
+                    link.CalcRailLinkPotential(RailLinkCostFuncIntegral);
+                    sumCost -= link.linkCost * link.x;
+                    sumCost += link.potential;
                 }
 
-                double sumCost = 0;
                 for (auto &&path : pathVec) {
-                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc);
+                    path.CalcPathCost(linkVec, demandVec, StayLinkCostFunc, StayLinkCostFunc2);
                     path.CalcPathCostWithPrice(linkVec);
                     sumCost += path.f * path.pathCost;
                 }
@@ -274,14 +309,14 @@ int main(int argc, char *argv[])
             initPathVec2 = pathVec;
 
             // With Pointのシミュレーション
-            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
 
             // Without Pointのシミュレーション
             for (auto &&demand : demandVec) {
                 demand.B = 0;
                 demand.L = 0;
             }
-            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
+            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
 
             // Without Controlのシミュレーション
             for (auto &&demand : demandVec) {
@@ -293,7 +328,7 @@ int main(int argc, char *argv[])
                 link.money = 0;
                 link.point = 0;
             }
-            SimulationNoControl(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            SimulationNoControl(initPathVec2, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransNo, railCostTransNo, stayUtilTransNo, pathCostTransNo, possessedPointTransNo, linkFlowTransNo, zeroFlowTransNo, oneFlowTransNo, pathFlowTransNo, moneyTransNo, pointTransNo, railRevenueTransNo, storeRevenueTransNo, perturbationTransNo, pathZeroCostTransNo, pathOneCostTransNo);
 
 
             // perturbationTransは最終日が記録されていないので記録する
@@ -317,14 +352,15 @@ int main(int argc, char *argv[])
             pathVec[1].f = i;
             pathVec[2].f = demandVec[0].m - i;
             initPathVec = pathVec;
+            initPathVec2 = pathVec;
 
-            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
 
             for (auto &&demand : demandVec) {
                 demand.B = 0;
                 demand.L = 0;
             }
-            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
+            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
 
             for (auto &&demand : demandVec) {
                 demand.B = 0;
@@ -335,7 +371,7 @@ int main(int argc, char *argv[])
                 link.money = 0;
                 link.point = 0;
             }
-            SimulationNoControl(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            SimulationNoControl(initPathVec2, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransNo, railCostTransNo, stayUtilTransNo, pathCostTransNo, possessedPointTransNo, linkFlowTransNo, zeroFlowTransNo, oneFlowTransNo, pathFlowTransNo, moneyTransNo, pointTransNo, railRevenueTransNo, storeRevenueTransNo, perturbationTransNo, pathZeroCostTransNo, pathOneCostTransNo);
 
             // perturbationTransは最終日が記録されていないので記録する
             perturbationTrans.emplace_back(std::vector<double>(pathVec.size(), 0));
@@ -358,14 +394,15 @@ int main(int argc, char *argv[])
             pathVec[1].f = 0;
             pathVec[2].f = demandVec[0].m - i;
             initPathVec = pathVec;
+            initPathVec2 = pathVec;
 
-            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            Simulation(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
 
             for (auto &&demand : demandVec) {
                 demand.B = 0;
                 demand.L = 0;
             }
-            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
+            SimulationWithout(initPathVec, linkVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransOut, railCostTransOut, stayUtilTransOut, pathCostTransOut, possessedPointTransOut, linkFlowTransOut, zeroFlowTransOut, oneFlowTransOut, pathFlowTransOut, moneyTransOut, pointTransOut, railRevenueTransOut, storeRevenueTransOut, perturbationTransOut, pathZeroCostTransOut, pathOneCostTransOut);
 
             for (auto &&demand : demandVec) {
                 demand.B = 0;
@@ -376,7 +413,7 @@ int main(int argc, char *argv[])
                 link.money = 0;
                 link.point = 0;
             }
-            SimulationNoControl(pathVec, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, sumCostTrans, railCostTrans, stayUtilTrans, pathCostTrans, possessedPointTrans, linkFlowTrans, zeroFlowTrans, oneFlowTrans, pathFlowTrans, moneyTrans, pointTrans, railRevenueTrans, storeRevenueTrans, perturbationTrans, pathZeroCostTrans, pathOneCostTrans);
+            SimulationNoControl(initPathVec2, linkVec, nodeVec, demandVec, RailLinkCostFunc, RailLinkCostFuncPrime, StayLinkCostFunc, StayLinkCostFunc2, sumCostTransNo, railCostTransNo, stayUtilTransNo, pathCostTransNo, possessedPointTransNo, linkFlowTransNo, zeroFlowTransNo, oneFlowTransNo, pathFlowTransNo, moneyTransNo, pointTransNo, railRevenueTransNo, storeRevenueTransNo, perturbationTransNo, pathZeroCostTransNo, pathOneCostTransNo);
 
 
             // perturbationTransは最終日が記録されていないので記録する

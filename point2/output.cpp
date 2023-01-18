@@ -41,11 +41,10 @@ void Write2DFile(std::vector<std::vector<double>> vec, std::string fName)
 }
 
 
-void WriteParameterFile()
+void WriteParameterFile(std::string SUBDIR)
 {
     std::ofstream ofs(DIR + SUBDIR + PARAM_FNAME);
 
-    ofs << "MODE," << MODE << std::endl;  // モード
     ofs << "SIM_NUM," << SIM_NUM << std::endl;  // シミュレーション回数
     ofs << "MAX_ITER," << MAX_ITER << std::endl;  // 繰り返し計算の上限
     ofs << "CONVERGE_THRES," << CONVERGE_THRES << std::endl;  // 収束判定用
@@ -59,6 +58,7 @@ void WriteParameterFile()
     ofs << "M_MAX," << M_MAX << std::endl;  // 1日の使用上限
     ofs << "M0," << M0 << std::endl;  // 使用できるポイントの1単位
     ofs << "C," << C << std::endl;  // 場所の効用関数のパラメータ
+    ofs << "C2," << C2 << std::endl;  // 場所の効用関数のパラメータその2
     ofs << "C_BOARD," <<  C_BOARD << std::endl;  // 乗車コスト
     ofs << "DYNAMIC_STEP," << DYNAMICS_STEP << std::endl;  // ダイナミクスのステップ幅
     ofs << "GAMMA," << GAMMA << std::endl;  // 1ポイントの金銭的価値

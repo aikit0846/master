@@ -2,7 +2,7 @@
 
 // const int MODE = 0;
 const int SIM_NUM = 100; // 3000;  // シミュレーションの回数
-const int MAX_ITER = 5000;  // 繰り返し計算の上限
+const int MAX_ITER = 3000;  // 繰り返し計算の上限
 const double CONVERGE_THRES = 1e-6;  // 収束判定用
 const int CONVERGE_COUNT_THRES = 10;  // 収束判定用
 const int T_BAR = 3;  // 時間帯上限
@@ -13,10 +13,11 @@ const double BETA_H = 1;  // 乗車時間の時間価値
 const double CAP = 4;  // 列車の定員
 const double M_MAX = 200;  // 1日の使用上限
 const double M0 = 1;  // 使用できるポイントの1単位
-const double C = 0.6;  // 場所の効用関数のパラメータ
+const double C = 0.3;  // 場所の効用関数のパラメータ
+const double C2 = 0.5;  // 場所の効用関数のパラメータその2
 const double C_BOARD = 1;  // 乗車コスト
-const double DYNAMICS_STEP = 0.001;  // ダイナミクスのステップ幅
-const double GAMMA = 0.7;  // 1ポイントの金銭的価値
+const double DYNAMICS_STEP = 0.002;  // ダイナミクスのステップ幅
+const double GAMMA = 0.9;  // 1ポイントの金銭的価値
 const double U0_AFF = 35;
 const double U0_NON = 35;
 const double RHO = 0;
@@ -102,18 +103,27 @@ void Link::CalcLinkPrice()
 }
 
 
+void Link::CalcRailLinkPotential(std::function<double(double, double)> LinkCostFuncIntegral)
+{
+    if (this->type == 'r') {
+        this->potential = LinkCostFuncIntegral(this->x, DELTA_T) - LinkCostFuncIntegral(0, DELTA_T);
+    }
+}
+
+
 // 経路のコスト計算
-void Path::CalcPathCost(std::vector<Link> linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> StayLinkCostFunc)
+void Path::CalcPathCost(std::vector<Link> linkVec, std::vector<Demand> demandVec, std::function<double(double, double)> StayLinkCostFunc, std::function<double(double, double)> StayLinkCostFunc2)
 {
     double prev = this->pathCost;
     this->pathCost = 0;
     for (auto &&idx : this->linkSeries) {
         this->pathCost += linkVec[idx].linkCost;
         if (linkVec[idx].type == 's') {
-            this->pathCost += StayLinkCostFunc(demandVec[this->odidx].B, linkVec[idx].poiU);
-        }
-        if (linkVec[idx].type != 's') {
-            this->pathCost -= linkVec[idx].poiU;  // スケジューリングコスト・系列店を含まない場所の効用
+            this->pathCost += StayLinkCostFunc(demandVec[this->odidx].B, linkVec[idx].poiU);  // 1つ目の滞在場所の効用
+        } else if (linkVec[idx].type == 't') {
+            this->pathCost += StayLinkCostFunc2(demandVec[this->odidx].B, linkVec[idx].poiU);  // 2つ目の滞在場所の効用
+        } else {
+            this->pathCost -= linkVec[idx].poiU;  // スケジューリングコスト
         }
     }
     this->pathCost += (this->boardNum - 1) * C_BOARD;
@@ -144,7 +154,7 @@ double Demand::CalcConsumedPoint(std::vector<Path> pathVec, std::vector<Link> li
     for (auto &&idx : this->pathIdx) {
         isStay = false;
         for (auto &&linkIdx : pathVec[idx].linkSeries) {
-            if (linkVec[linkIdx].type == 's') {
+            if (linkVec[linkIdx].type == 's' || (linkVec[linkIdx].type == 't' && C2 != 0)) {
                 isStay = true;
                 break;
             }
@@ -192,6 +202,12 @@ double RailLinkCostFuncPrime(double u, double t)
     return BETA_H * A * B * std::pow(u / CAP, B - 1) * t / CAP;
 }
 
+// 鉄道リンクのリンクコスト関数の不定積分
+double RailLinkCostFuncIntegral(double u, double t)
+{
+    return BETA_H * (u + (A * CAP / (B + 1)) * std::pow(u / CAP, B + 1)) * t;
+}
+
 
 // 滞在リンクのリンクコスト関数
 double StayLinkCostFunc(double b, double poiU)
@@ -200,6 +216,17 @@ double StayLinkCostFunc(double b, double poiU)
         return -C * std::sqrt(b) - poiU;
     } else {
         return -C * std::sqrt(M_MAX) - poiU;
+    }
+}
+
+
+// 滞在リンクのリンクコスト関数その2
+double StayLinkCostFunc2(double b, double poiU)
+{
+    if (b < M_MAX) {
+        return -C2 * std::sqrt(b) - poiU;
+    } else {
+        return -C2 * std::sqrt(M_MAX) - poiU;
     }
 }
 

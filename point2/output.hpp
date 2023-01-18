@@ -10,6 +10,6 @@ void Write1DFile(std::vector<double> vec, std::string fName, std::string colName
 void Write2DFile(std::vector<std::vector<double>> vec, std::string fName);
 
 // パラメータ記録用
-void WriteParameterFile();
+void WriteParameterFile(std::string SUBDIR);
 
 #endif
